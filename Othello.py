@@ -71,8 +71,8 @@ class Oth:
                 [E, E, E, E, E, E, E, E],
                 [E, E, E, W, B, E, E, E],
                 [E, E, E, B, W, E, E, E],
-                [E, E, E, E, E, E, E, E],
-                [E, E, E, E, E, E, E, E],
+                [E, E, E, E, W, E, E, E],
+                [E, E, E, E, W, E, E, E],
                 [E, E, E, E, E, E, E, E]]
     
     # accessors and mutators 
@@ -123,28 +123,77 @@ class Oth:
         # find next player's color tiles in the board
         nextColorPositions = this.findColorPositions(nextColor)
 
+        # This dictionary holds all of the amounts to add/subtract from an index to move in a particular direction
+        directions: dict = {"up": (0, -1), 
+                            "up-right": (1, -1), 
+                            "right": (1, 0), 
+                            "down-right": (1, 1), 
+                            "down": (0, 1), 
+                            "down-left": (-1, 1), 
+                            "left": (-1, 0), 
+                            "up-left": (-1, -1)}
+        
         # check adjacent tiles for the opposite color on each of the returned next color positions 
         # if there is an opposite tile, follow it out until:
         # 1. an empty tile is found, return the move containing all of the tiles to change to nextColor 
-        # 2. the edge of the board is found, return None 
-        # 3. the next color is found, return None 
+        # 2. the edge of the board is found, return nothing
+        # 3. the next color is found, return nothing 
+        validMovePositions: list[position] = []
         for position in nextColorPositions:
-            pass
+            for direction in directions:
+                (x ,y) = position
+                vector = directions[direction]
+                (x, y) = tuple(x+y for x,y in zip((x ,y), vector))
+                if (x in range(8) and y in range(8) and this.getTileAt(y, x) != oppositeColor):            # preemptively exit if not the oppenents disc adjacent
+                    continue
+                while (x in range(8) and y in range(8)):
+                    if (this.getTileAt(y, x) == Tile.EMPTY):
+                        validMovePositions.append((x, y))
+                        break
+                    elif (this.getTileAt(y, x) == nextColor):
+                        break
+                    (x, y) = tuple(x+y for x,y in zip((x ,y), vector))
 
+        return validMovePositions
 
     # finds all positions of a color on the board 
     def findColorPositions(this, color: Tile) -> list[Position]:
 
         colorPositions = []
 
-        for i in range(this.board):
-            for j in range(i):
+        for i in range(len(this.board)):
+            for j in range(len(this.board[0])):
                 if this.getTileAt(i, j) == color:
-                    colorPositions.append((i, j))
+                    colorPositions.append((j, i))
 
         return colorPositions
+    
+    def strWithValidMoves(this, validMovePositions: list[Position]) -> str:
+
+        outstr = ANSI_RESTORE_DEFAULT
+
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_WHITE + "WHITE")}\n"
+        outstr += ANSI_FOREGROUND_WHITE
+
+        for i in range(len(this.board)):
+            rowPrint = ''
+            for j in range(len(this.board[0])):
+                tilePrint = ANSI_FOREGROUND_GREEN + UNICODE_SHADE_MEDIUM
+                if (j, i) in validMovePositions:
+                    tilePrint = ANSI_BACKGROUND_WHITE + ANSI_FOREGROUND_YELLOW + UNICODE_SHADE_DARK + ANSI_BACKGROUND_BLACK
+                elif this.getTileAt(i, j) == Tile.BLACK:
+                    tilePrint = ANSI_FOREGROUND_BLACK + UNICODE_SHADE_FULL
+                elif this.getTileAt(i, j) == Tile.WHITE:
+                    tilePrint = ANSI_FOREGROUND_WHITE + UNICODE_SHADE_FULL
+                rowPrint += tilePrint * PRINT_WIDTH
+            outstr += (rowPrint + '\n') * PRINT_HEIGHT
+
+        outstr += ANSI_RESTORE_DEFAULT
+
+        return outstr
 
 
 if __name__ == "__main__":
     oth = Oth()
-    print(oth)
+    valids = oth.findValidMoves()
+    print(oth.strWithValidMoves(valids))
