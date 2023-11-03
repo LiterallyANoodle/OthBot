@@ -41,8 +41,8 @@ UNICODE_SHADE_MEDIUM = '▒'
 UNICODE_SHADE_LIGHT = '░'
 UNICODE_SHADE_EMPTY = ' '
 
-PRINT_WIDTH = 4
-PRINT_HEIGHT = 2
+PRINT_WIDTH = 8
+PRINT_HEIGHT = 4
 
 # create an enum to define what can go in a board tile 
 class Tile(Enum):
@@ -256,7 +256,7 @@ class Menu:
 
     def printList(this, items: dict) -> None: 
         for i in range(len(items)):
-            print(f"[{i}] {items[i][0]}")
+            print(f"[{i}] {items[i]["label"]}")
 
     def clearConsole(this) -> None:
         os.system('cls')
@@ -268,19 +268,26 @@ class Menu:
     def startScreen(this) -> None:
 
         # table of options and their functions 
-        options: dict = {0: ("Exit", lambda: exit()), 
-                         1: ("Begin two player game", lambda: this.twoPlayer()), 
-                         2: ("Begin bot game", lambda: this.botPlayer())}
+        options: dict = {0: {"label": "Exit", "function": lambda: exit()}, 
+                         1: {"label": "Begin two player game", "function": lambda: this.twoPlayer()}, 
+                         2: {"label": "Begin bot game", "function": lambda: this.botPlayer()}}
 
         # menu stuff
-        this.clearConsole()
-        print(f"{ANSI_BACKGROUND_GREEN}{ANSI_FOREGROUND_WHITE}Welcome to Othello!{ANSI_RESTORE_DEFAULT}")
-        this.printList(options)
-        userIn = int(this.getInput())
+        invalidSelection = True
+        while invalidSelection:
+            try:
+                this.clearConsole()
+                print(f"{ANSI_BACKGROUND_GREEN}{ANSI_FOREGROUND_WHITE}Welcome to Othello!{ANSI_RESTORE_DEFAULT}")
+                this.printList(options)
+                userIn = int(this.getInput())
+                invalidSelection = False
+            except:
+                print("That is not an integer! Please try again.")
+                input("Press enter to continue...")
+                continue 
 
         # run the selection 
-        # unsafe, doesn't check the input, but whateverrrr mannnnn
-        options[userIn][1]()
+        options[userIn]["function"]()
 
     # plays a move for a human
     def playCoordinate(this) -> None:
@@ -300,7 +307,12 @@ class Menu:
             userIn = this.getInput()
             userIn = userIn.strip('(')
             userIn = userIn.strip(')')
-            coordinate = tuple(map(int, userIn.split(', ')))
+            try:
+                coordinate = tuple(map(int, userIn.split(', ')))
+            except:
+                print("That was not an integer tuple! Please try again.")
+                input("Press enter to continue...")
+                return
 
             this.game.playMove(coordinate, this.game.findValidMoves())
 
@@ -310,17 +322,22 @@ class Menu:
     # run basic game with humans
     def twoPlayer(this) -> None:
 
-        actions = {0: ("Exit", lambda: exit()),
-                   1: ("Play move", lambda: this.playCoordinate()),
-                   2: ("Enable debug", lambda: this.enableDebug())}
+        actions = {0: {"label": "Exit", "function": lambda: exit()},
+                   1: {"label": "Play move", "function": lambda: this.playCoordinate()},
+                   2: {"label": "Enable debug", "function": lambda: this.enableDebug()}}
 
         # main game loop
         while not this.game.isGameOver():
             this.clearConsole()
             print(this.game)
             this.printList(actions)
-            userIn = int(this.getInput())
-            actions[userIn][1]()
+            try: 
+                userIn = int(this.getInput())
+            except:
+                print("That is not an integer! Please try again.")
+                input("Press enter to continue...")
+                continue
+            actions[userIn]["function"]()
 
         # end game state
         margin = this.game.findMargin()
