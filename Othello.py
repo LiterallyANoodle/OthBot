@@ -7,7 +7,12 @@ Section: CSC 475 001
 Description: This is an implementation of the board game "Othello" as well as a minimax bot to play it. 
 '''
 from enum import Enum
+from random import randrange
 import os
+import warnings
+
+# ignore syntax warnings 
+warnings.filterwarnings(action='ignore', category=SyntaxWarning)
 
 # custom type hints 
 type Matrix = list[list[Tile]]
@@ -43,6 +48,83 @@ UNICODE_SHADE_EMPTY = ' '
 
 PRINT_WIDTH = 8
 PRINT_HEIGHT = 4
+
+TITLE_ASCII_ART_1 = \
+"""
++===========================================================================+
+| ________  _________  ___  ___  _______   ___       ___       ________     |
+||\   __  \|\___   ___\\\  \|\  \|\  ___ \ |\  \     |\  \     |\   __  \    |
+|\ \  \|\  \|___ \  \_\ \  \\\\\  \ \   __/|\ \  \    \ \  \    \ \  \|\  \   |
+| \ \  \\\\\  \   \ \  \ \ \   __  \ \  \_|/_\ \  \    \ \  \    \ \  \\\\\  \  |
+|  \ \  \\\\\  \   \ \  \ \ \  \ \  \ \  \_|\ \ \  \____\ \  \____\ \  \\\\\  \ |
+|   \ \_______\   \ \__\ \ \__\ \__\ \_______\ \_______\ \_______\ \_______\|
+|    \|_______|    \|__|  \|__|\|__|\|_______|\|_______|\|_______|\|_______||
++===========================================================================+
+"""
+TITLE_ASCII_ART_2 = \
+"""
++==============================================================================================+
+|         _          _            _       _    _            _             _             _      |
+|        /\ \       /\ \         / /\    / /\ /\ \         _\ \          _\ \          /\ \    |
+|       /  \ \      \_\ \       / / /   / / //  \ \       /\__ \        /\__ \        /  \ \   |
+|      / /\ \ \     /\__ \     / /_/   / / // /\ \ \     / /_ \_\      / /_ \_\      / /\ \ \  |
+|     / / /\ \ \   / /_ \ \   / /\ \__/ / // / /\ \_\   / / /\/_/     / / /\/_/     / / /\ \ \ |
+|    / / /  \ \_\ / / /\ \ \ / /\ \___\/ // /_/_ \/_/  / / /         / / /         / / /  \ \_\|
+|   / / /   / / // / /  \/_// / /\/___/ // /____/\    / / /         / / /         / / /   / / /|
+|  / / /   / / // / /      / / /   / / // /\____\/   / / / ____    / / / ____    / / /   / / / |
+| / / /___/ / // / /      / / /   / / // / /______  / /_/_/ ___/\ / /_/_/ ___/\ / / /___/ / /  |
+|/ / /____\/ //_/ /      / / /   / / // / /_______\/_______/\__\//_______/\__\// / /____\/ /   |
+|\/_________/ \_\/       \/_/    \/_/ \/__________/\_______\/    \_______\/    \/_________/    |
++==============================================================================================+
+"""
+TITLE_ASCII_ART_3 = \
+"""
++========================================================================+
+|    ,----..                                                             |
+|   /   /   \      ___      ,---,                ,--,    ,--,            |
+|  /   .     :   ,--.'|_  ,--.' |              ,--.'|  ,--.'|            |
+| .   /   ;.  \  |  | :,' |  |  :              |  | :  |  | :     ,---.  |
+|.   ;   /  ` ;  :  : ' : :  :  :              :  : '  :  : '    '   ,'\ |
+|;   |  ; \ ; |.;__,'  /  :  |  |,--.   ,---.  |  ' |  |  ' |   /   /   ||
+||   :  | ; | '|  |   |   |  :  '   |  /     \ '  | |  '  | |  .   ; ,. :|
+|.   |  ' ' ' ::__,'| :   |  |   /' : /    /  ||  | :  |  | :  '   | |: :|
+|'   ;  \; /  |  '  : |__ '  :  | | |.    ' / |'  : |__'  : |__'   | .; :|
+| \   \  ',  /   |  | '.'||  |  ' | :'   ;   /||  | '.'|  | '.'|   :    ||
+|  ;   :    /    ;  :    ;|  :  :_:,''   |  / |;  :    ;  :    ;\   \  / |
+|   \   \ .'     |  ,   / |  | ,'    |   :    ||  ,   /|  ,   /  `----'  |
+|    `---`        ---`-'  `--''       \   \  /  ---`-'  ---`-'           |
+|                                      `----'                            |
++========================================================================+
+"""
+TITLE_ASCII_ART_4 = \
+"""
++=================================================================================+
+| ▄██████▄      ███        ▄█    █▄       ▄████████  ▄█        ▄█        ▄██████▄ |
+|███    ███ ▀█████████▄   ███    ███     ███    ███ ███       ███       ███    ███|
+|███    ███    ▀███▀▀██   ███    ███     ███    █▀  ███       ███       ███    ███|
+|███    ███     ███   ▀  ▄███▄▄▄▄███▄▄  ▄███▄▄▄     ███       ███       ███    ███|
+|███    ███     ███     ▀▀███▀▀▀▀███▀  ▀▀███▀▀▀     ███       ███       ███    ███|
+|███    ███     ███       ███    ███     ███    █▄  ███       ███       ███    ███|
+|███    ███     ███       ███    ███     ███    ███ ███▌    ▄ ███▌    ▄ ███    ███|
+| ▀██████▀     ▄████▀     ███    █▀      ██████████ █████▄▄██ █████▄▄██  ▀██████▀ |
+|                                                   ▀         ▀                   |
++=================================================================================+
+"""
+TITLE_ASCII_ART_5 = \
+"""
++===================================================================+
+| ▄▀▀▀▀▄   ▄▀▀▀█▀▀▄  ▄▀▀▄ ▄▄   ▄▀▀█▄▄▄▄  ▄▀▀▀▀▄    ▄▀▀▀▀▄    ▄▀▀▀▀▄ |
+|█      █ █    █  ▐ █  █   ▄▀ ▐  ▄▀   ▐ █    █    █    █    █      █|
+|█      █ ▐   █     ▐  █▄▄▄█    █▄▄▄▄▄  ▐    █    ▐    █    █      █|
+|▀▄    ▄▀    █         █   █    █    ▌      █         █     ▀▄    ▄▀|
+|  ▀▀▀▀    ▄▀         ▄▀  ▄▀   ▄▀▄▄▄▄     ▄▀▄▄▄▄▄▄▀ ▄▀▄▄▄▄▄▄▀ ▀▀▀▀  |
+|         █          █   █     █    ▐     █         █               |
+|         ▐          ▐   ▐     ▐          ▐         ▐               |
++===================================================================+
+"""
+
+
+
 
 # create an enum to define what can go in a board tile 
 class Tile(Enum):
@@ -109,6 +191,59 @@ class Oth:
             outstr += (rowPrint + '\n') * PRINT_HEIGHT
 
         outstr += ANSI_RESTORE_DEFAULT
+
+        return outstr
+    
+    def strWithValidMoves(this, validMovePositions: list[Position]) -> str:
+
+        outstr = ANSI_RESTORE_DEFAULT
+
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
+        outstr += ANSI_FOREGROUND_WHITE
+
+        # print coordinates for ease of play
+        # top coords
+        outstr += " "
+        for i in range(len(this.board)):
+            outstr += (f"{i}" + (" " * (PRINT_WIDTH - 1)))
+        outstr += '\n'
+
+        for i in range(len(this.board)):
+            rowPrint = ''
+            for j in range(len(this.board[0])):
+                tilePrint = ANSI_FOREGROUND_GREEN + UNICODE_SHADE_MEDIUM
+                if (j, i) in validMovePositions:
+                    tilePrint = ANSI_BACKGROUND_WHITE + ANSI_FOREGROUND_YELLOW + UNICODE_SHADE_DARK + ANSI_BACKGROUND_BLACK
+                elif this.getTileAt(i, j) == Tile.BLACK:
+                    tilePrint = ANSI_FOREGROUND_BLACK + UNICODE_SHADE_FULL
+                elif this.getTileAt(i, j) == Tile.WHITE:
+                    tilePrint = ANSI_FOREGROUND_WHITE + UNICODE_SHADE_FULL
+                rowPrint += tilePrint * PRINT_WIDTH
+            outstr += (f"{ANSI_RESTORE_DEFAULT}{i}" + rowPrint + '\n')
+            outstr += (" " + rowPrint + '\n') * (PRINT_HEIGHT - 1)
+
+        outstr += ANSI_RESTORE_DEFAULT
+
+        return outstr
+
+    # string with no special characters or ANSI codes for outputting to file 
+    def strForOutput(this) -> str:
+
+        outstr = f"Next to move: {"BLACK" if this.blackNextToMove else "WHITE"}\n"
+
+        for i in range(len(this.board)):
+            rowPrint = "["
+            for j in range(len(this.board[0])):
+                if this.getTileAt(i, j) == Tile.EMPTY:
+                    rowPrint += ". "
+                elif this.getTileAt(i, j) == Tile.BLACK:
+                    rowPrint += "B "
+                elif this.getTileAt(i, j) == Tile.WHITE:
+                    rowPrint += "W "
+            rowPrint += f"]\n"
+            outstr += rowPrint
+
+        outstr += f"Valid moves: {list(this.findValidMoves().keys())}"
 
         return outstr
 
@@ -178,38 +313,6 @@ class Oth:
 
         return colorPositions
     
-    def strWithValidMoves(this, validMovePositions: list[Position]) -> str:
-
-        outstr = ANSI_RESTORE_DEFAULT
-
-        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
-        outstr += ANSI_FOREGROUND_WHITE
-
-        # print coordinates for ease of play
-        # top coords
-        outstr += " "
-        for i in range(len(this.board)):
-            outstr += (f"{i}" + (" " * (PRINT_WIDTH - 1)))
-        outstr += '\n'
-
-        for i in range(len(this.board)):
-            rowPrint = ''
-            for j in range(len(this.board[0])):
-                tilePrint = ANSI_FOREGROUND_GREEN + UNICODE_SHADE_MEDIUM
-                if (j, i) in validMovePositions:
-                    tilePrint = ANSI_BACKGROUND_WHITE + ANSI_FOREGROUND_YELLOW + UNICODE_SHADE_DARK + ANSI_BACKGROUND_BLACK
-                elif this.getTileAt(i, j) == Tile.BLACK:
-                    tilePrint = ANSI_FOREGROUND_BLACK + UNICODE_SHADE_FULL
-                elif this.getTileAt(i, j) == Tile.WHITE:
-                    tilePrint = ANSI_FOREGROUND_WHITE + UNICODE_SHADE_FULL
-                rowPrint += tilePrint * PRINT_WIDTH
-            outstr += (f"{ANSI_RESTORE_DEFAULT}{i}" + rowPrint + '\n')
-            outstr += (" " + rowPrint + '\n') * (PRINT_HEIGHT - 1)
-
-        outstr += ANSI_RESTORE_DEFAULT
-
-        return outstr
-    
     # returns true or false based on if the move succeeded or not
     # method assumes that there are > 0 valid moves to play 
     def playMove(this, position: Position, validMoves: dict) -> bool:
@@ -270,24 +373,27 @@ class Menu:
         # table of options and their functions 
         options: dict = {0: {"label": "Exit", "function": lambda: exit()}, 
                          1: {"label": "Begin two player game", "function": lambda: this.twoPlayer()}, 
-                         2: {"label": "Begin bot game", "function": lambda: this.botPlayer()}}
+                         2: {"label": "Begin bot game", "function": lambda: this.botPlayer()},
+                         3: {"label": "Toggle debug", "function": lambda: this.toggleDebug()}}
 
         # menu stuff
-        invalidSelection = True
-        while invalidSelection:
-            try:
-                this.clearConsole()
-                print(f"{ANSI_BACKGROUND_GREEN}{ANSI_FOREGROUND_WHITE}Welcome to Othello!{ANSI_RESTORE_DEFAULT}")
-                this.printList(options)
-                userIn = int(this.getInput())
-                invalidSelection = False
-            except:
-                print("That is not an integer! Please try again.")
-                input("Press enter to continue...")
-                continue 
+        while True:
+            invalidSelection = True
+            titles = [TITLE_ASCII_ART_1, TITLE_ASCII_ART_2, TITLE_ASCII_ART_3, TITLE_ASCII_ART_4, TITLE_ASCII_ART_5]
+            while invalidSelection:
+                try:
+                    this.clearConsole()
+                    print(f"{ANSI_BACKGROUND_GREEN}{ANSI_FOREGROUND_BLACK}{titles[randrange(5)]}{ANSI_RESTORE_DEFAULT}")
+                    this.printList(options)
+                    userIn = int(this.getInput())
+                    invalidSelection = False
+                except:
+                    print("That is not an integer! Please try again.")
+                    input("Press enter to continue...")
+                    continue 
 
-        # run the selection 
-        options[userIn]["function"]()
+            # run the selection 
+            options[userIn]["function"]()
 
     # plays a move for a human
     def playCoordinate(this) -> None:
@@ -316,15 +422,18 @@ class Menu:
 
             this.game.playMove(coordinate, this.game.findValidMoves())
 
-    def enableDebug(this) -> None:
-        pass
+    def toggleDebug(this) -> None:
+        this.DEBUG = not this.DEBUG
+        print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        input("Press enter to continue...")
+        return 
 
     # run basic game with humans
     def twoPlayer(this) -> None:
 
         actions = {0: {"label": "Exit", "function": lambda: exit()},
                    1: {"label": "Play move", "function": lambda: this.playCoordinate()},
-                   2: {"label": "Enable debug", "function": lambda: this.enableDebug()}}
+                   2: {"label": "Toggle debug", "function": lambda: this.toggleDebug()}}
 
         # main game loop
         while not this.game.isGameOver():
@@ -360,3 +469,5 @@ class Menu:
 if __name__ == "__main__":
     menu = Menu()
     menu.startScreen()
+    # oth = Oth()
+    # print(oth.strForOutput())
