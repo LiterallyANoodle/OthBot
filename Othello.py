@@ -7,6 +7,7 @@ Section: CSC 475 001
 Description: This is an implementation of the board game "Othello" as well as a minimax bot to play it. 
 '''
 from enum import Enum
+import os
 
 # custom type hints 
 type Matrix = list[list[Tile]]
@@ -71,8 +72,8 @@ class Oth:
                 [E, E, E, E, E, E, E, E],
                 [E, E, E, W, B, E, E, E],
                 [E, E, E, B, W, E, E, E],
-                [E, E, E, E, W, E, E, E],
-                [E, E, E, E, W, E, E, E],
+                [E, E, E, E, E, E, E, E],
+                [E, E, E, E, E, E, E, E],
                 [E, E, E, E, E, E, E, E]]
     
     # accessors and mutators 
@@ -93,7 +94,7 @@ class Oth:
         
         outstr = ANSI_RESTORE_DEFAULT
 
-        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_WHITE + "WHITE")}\n"
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
         outstr += ANSI_FOREGROUND_WHITE
 
         for row in this.board:
@@ -138,17 +139,26 @@ class Oth:
         # 1. an empty tile is found, return the move containing all of the tiles to change to nextColor 
         # 2. the edge of the board is found, return nothing
         # 3. the next color is found, return nothing 
-        validMovePositions: list[position] = []
+        validMovePositions: dict[position] = {}
         for position in nextColorPositions:
             for direction in directions:
+
                 (x ,y) = position
                 vector = directions[direction]
+                tilesToFlip = []
+
                 (x, y) = tuple(x+y for x,y in zip((x ,y), vector))
                 if (x in range(8) and y in range(8) and this.getTileAt(y, x) != oppositeColor):            # preemptively exit if not the oppenents disc adjacent
                     continue
+
                 while (x in range(8) and y in range(8)):
+                    tilesToFlip.append((x, y))
                     if (this.getTileAt(y, x) == Tile.EMPTY):
-                        validMovePositions.append((x, y))
+                        if (x, y) not in validMovePositions:
+                            validMovePositions[(x, y)] = []
+                        # we want to use extend instead of assignment in case there's multiple paths that can be flipped from a single move 
+                        # duplicates will only occur on the move tile, so they're fine and don't affect anything 
+                        validMovePositions[(x, y)].extend(tilesToFlip) 
                         break
                     elif (this.getTileAt(y, x) == nextColor):
                         break
@@ -172,8 +182,15 @@ class Oth:
 
         outstr = ANSI_RESTORE_DEFAULT
 
-        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_WHITE + "WHITE")}\n"
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
         outstr += ANSI_FOREGROUND_WHITE
+
+        # print coordinates for ease of play
+        # top coords
+        outstr += " "
+        for i in range(len(this.board)):
+            outstr += (f"{i}" + (" " * (PRINT_WIDTH - 1)))
+        outstr += '\n'
 
         for i in range(len(this.board)):
             rowPrint = ''
@@ -186,14 +203,143 @@ class Oth:
                 elif this.getTileAt(i, j) == Tile.WHITE:
                     tilePrint = ANSI_FOREGROUND_WHITE + UNICODE_SHADE_FULL
                 rowPrint += tilePrint * PRINT_WIDTH
-            outstr += (rowPrint + '\n') * PRINT_HEIGHT
+            outstr += (f"{ANSI_RESTORE_DEFAULT}{i}" + rowPrint + '\n')
+            outstr += (" " + rowPrint + '\n') * (PRINT_HEIGHT - 1)
 
         outstr += ANSI_RESTORE_DEFAULT
 
         return outstr
+    
+    # returns true or false based on if the move succeeded or not
+    # method assumes that there are > 0 valid moves to play 
+    def playMove(this, position: Position, validMoves: dict) -> bool:
 
+        # move fails 
+        if position not in validMoves:
+            print(f"{position} is not a valid move! Please try again.")
+            input("Press enter to continue...")
+            return False
+        
+        # move succeeds
+        for coordinate in validMoves[position]:
+            this.setTileAt(Tile.BLACK if this.blackNextToMove else Tile.WHITE, coordinate[1], coordinate[0])
+
+        this.blackNextToMove = not this.blackNextToMove
+        return True
+    
+    # check if the game is over
+    def isGameOver(this) -> bool:
+        nextCanMove = (len(this.findValidMoves()) > 0)
+        this.blackNextToMove = not this.blackNextToMove
+        oppositeCanMove = (len(this.findValidMoves()) > 0)
+        this.blackNextToMove = not this.blackNextToMove
+
+        return not (nextCanMove or oppositeCanMove)
+    
+    # check the margin of score
+    def findMargin(this) -> int:
+        total = 0
+        for row in this.board:
+            for tile in row:
+                total += tile.value # in the enum, black is -1, white is 1, and empty is 0, so they can be easily summed 
+
+        return total
+    
+class Menu:
+
+    game = None
+    DEBUG = False
+
+    def __init__(this):
+        this.DEBUG = False
+        this.game = Oth()
+
+    def printList(this, items: dict) -> None: 
+        for i in range(len(items)):
+            print(f"[{i}] {items[i][0]}")
+
+    def clearConsole(this) -> None:
+        os.system('cls')
+
+    def getInput(this):
+        return input(">>> ").strip()
+
+    # entry point for the program
+    def startScreen(this) -> None:
+
+        # table of options and their functions 
+        options: dict = {0: ("Exit", lambda: exit()), 
+                         1: ("Begin two player game", lambda: this.twoPlayer()), 
+                         2: ("Begin bot game", lambda: this.botPlayer())}
+
+        # menu stuff
+        this.clearConsole()
+        print(f"{ANSI_BACKGROUND_GREEN}{ANSI_FOREGROUND_WHITE}Welcome to Othello!{ANSI_RESTORE_DEFAULT}")
+        this.printList(options)
+        userIn = int(this.getInput())
+
+        # run the selection 
+        # unsafe, doesn't check the input, but whateverrrr mannnnn
+        options[userIn][1]()
+
+    # plays a move for a human
+    def playCoordinate(this) -> None:
+
+        # printing 
+        this.clearConsole()
+        validMoves = this.game.findValidMoves()
+        print(this.game.strWithValidMoves(validMoves))
+
+        if len(validMoves) == 0:
+            print(f"{ANSI_FOREGROUND_MAGENTA + "BLACK" if this.game.blackNextToMove else ANSI_FOREGROUND_YELLOW + "WHITE"}{ANSI_RESTORE_DEFAULT} has no valid moves and must pass.")
+            input("Press enter to continue...")
+            this.game.blackNextToMove = not this.game.blackNextToMove
+        else:
+            print("Type the coordinate to play as a tuple like (x, y). Valid moves are highlighted yellow.")
+
+            userIn = this.getInput()
+            userIn = userIn.strip('(')
+            userIn = userIn.strip(')')
+            coordinate = tuple(map(int, userIn.split(', ')))
+
+            this.game.playMove(coordinate, this.game.findValidMoves())
+
+    def enableDebug(this) -> None:
+        pass
+
+    # run basic game with humans
+    def twoPlayer(this) -> None:
+
+        actions = {0: ("Exit", lambda: exit()),
+                   1: ("Play move", lambda: this.playCoordinate()),
+                   2: ("Enable debug", lambda: this.enableDebug())}
+
+        # main game loop
+        while not this.game.isGameOver():
+            this.clearConsole()
+            print(this.game)
+            this.printList(actions)
+            userIn = int(this.getInput())
+            actions[userIn][1]()
+
+        # end game state
+        margin = this.game.findMargin()
+        if margin > 0:
+            this.clearConsole()
+            print(this.game)
+            print(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+        elif margin < 0:
+            this.clearConsole()
+            print(this.game)
+            print(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+        else:
+            this.clearConsole()
+            print(this.game)
+            print(f"It's a draw!")
+
+    def botPlayer(this) -> None:
+        print("bot player")
 
 if __name__ == "__main__":
-    oth = Oth()
-    valids = oth.findValidMoves()
-    print(oth.strWithValidMoves(valids))
+    menu = Menu()
+    menu.startScreen()
