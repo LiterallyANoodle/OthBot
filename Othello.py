@@ -129,8 +129,15 @@ TITLE_ASCII_ART_5 = \
 # create an enum to define what can go in a board tile 
 class Tile(Enum):
     EMPTY = 0
-    BLACK = -1 # the user will always start and black always starts, so black has a negative heuristic association
+    BLACK = -1 # the user will usually start and black always starts, so black has a negative heuristic association typically
     WHITE = 1
+
+# create enum for safe tile function
+class CornerDirection(Enum):
+    TOP_RIGHT = (-1, 1)
+    BOTTOM_RIGHT = (-1, -1)
+    BOTTOM_LEFT = (1, -1)
+    TOP_LEFT = (1, 1)
 
 # game class (rules and board)
 class Oth: 
@@ -149,14 +156,14 @@ class Oth:
         E = Tile.EMPTY
         B = Tile.BLACK
         W = Tile.WHITE
-        return [[E, E, E, E, E, E, E, E],
-                [E, E, E, E, E, E, E, E],
-                [E, E, E, E, E, E, E, E],
-                [E, E, E, W, B, E, E, E],
-                [E, E, E, B, W, E, E, E],
-                [E, E, E, E, E, E, E, E],
-                [E, E, E, E, E, E, E, E],
-                [E, E, E, E, E, E, E, E]]
+        return [[E, E, E, E, E, E, E, B],
+                [E, E, E, E, E, E, B, B],
+                [E, E, E, E, E, E, B, B],
+                [E, E, E, E, E, E, B, B],
+                [E, E, E, B, E, E, B, B],
+                [E, E, E, E, B, B, B, B],
+                [E, E, E, E, E, B, B, B],
+                [B, B, B, B, B, B, B, B]]
     
     # accessors and mutators 
     def getTileAt(this, i: int, j: int) -> Tile:
@@ -170,6 +177,16 @@ class Oth:
             return
         
         this.board[i][j] = tile
+
+    def getBoardClone(this, inBoard):
+        outBoard = []
+
+        for i in range(len(inBoard)):
+            outBoard.append([])
+            for j in range(len(inBoard[0])):
+                outBoard[i].append(inBoard[i][j])
+
+        return outBoard
 
     # formatted printing
     def __str__(this) -> str:
@@ -227,37 +244,53 @@ class Oth:
         return outstr
 
     # string with no special characters or ANSI codes for outputting to file 
-    def strForOutput(this) -> str:
+    def strForOutput(this, inBoard=None, inBlackNextToMove=None) -> str:
 
-        outstr = f"Next to move: {"BLACK" if this.blackNextToMove else "WHITE"}\n"
+        printBoard = this.board
+        printBlackNextMove = this.blackNextToMove
 
-        for i in range(len(this.board)):
+        # allows for printing of either this game's board or any arbitrary board 
+        if inBoard != None and inBlackNextToMove != None:
+            printBoard = inBoard
+            printBlackNextMove = inBlackNextToMove
+
+        outstr = f"Next to move: {"BLACK" if printBlackNextMove else "WHITE"}\n"
+
+        for i in range(len(printBoard)):
             rowPrint = "["
-            for j in range(len(this.board[0])):
-                if this.getTileAt(i, j) == Tile.EMPTY:
+            for j in range(len(printBoard[0])):
+                if printBoard[i][j] == Tile.EMPTY:
                     rowPrint += ". "
-                elif this.getTileAt(i, j) == Tile.BLACK:
+                elif printBoard[i][j] == Tile.BLACK:
                     rowPrint += "B "
-                elif this.getTileAt(i, j) == Tile.WHITE:
+                elif printBoard[i][j] == Tile.WHITE:
                     rowPrint += "W "
             rowPrint += f"]\n"
             outstr += rowPrint
 
-        outstr += f"Valid moves: {list(this.findValidMoves().keys())}"
+        outstr += f"Valid moves: {list(this.findValidMoves(inBoard=printBoard, inBlackNextMove=printBlackNextMove).keys())}"
 
         return outstr
 
     # searches the board and returns a list of tuples which are valid coordinates for next player to place a tile
-    def findValidMoves(this) -> list[Position]:
+    def findValidMoves(this, inBoard=None, inBlackNextMove=None) -> list[Position]:
+
+        checkBoard = this.board
+        checkBlackNextMove = this.blackNextToMove
+
+        # allow an arbitrary board to be passed in
+        if inBoard != None and inBlackNextMove != None:
+            checkBoard = inBoard
+            checkBlackNextMove = inBlackNextMove
 
         nextColor = Tile.WHITE
         oppositeColor = Tile.BLACK
-        if this.blackNextToMove:
+        if checkBlackNextMove:
             nextColor = Tile.BLACK
             oppositeColor = Tile.WHITE
 
         # find next player's color tiles in the board
-        nextColorPositions = this.findColorPositions(nextColor)
+        nextColorPositions = this.findColorPositions(nextColor, checkBoard)
 
         # This dictionary holds all of the amounts to add/subtract from an index to move in a particular direction
         directions: dict = {"up": (0, -1), 
@@ -283,32 +316,32 @@ class Oth:
                 tilesToFlip = []
 
                 (x, y) = tuple(x+y for x,y in zip((x ,y), vector))
-                if (x in range(8) and y in range(8) and this.getTileAt(y, x) != oppositeColor):            # preemptively exit if not the oppenents disc adjacent
+                if (x in range(8) and y in range(8) and checkBoard[y][x] != oppositeColor):            # preemptively exit if not the oppenents disc adjacent
                     continue
 
                 while (x in range(8) and y in range(8)):
                     tilesToFlip.append((x, y))
-                    if (this.getTileAt(y, x) == Tile.EMPTY):
+                    if (checkBoard[y][x] == Tile.EMPTY):
                         if (x, y) not in validMovePositions:
                             validMovePositions[(x, y)] = []
                         # we want to use extend instead of assignment in case there's multiple paths that can be flipped from a single move 
                         # duplicates will only occur on the move tile, so they're fine and don't affect anything 
                         validMovePositions[(x, y)].extend(tilesToFlip) 
                         break
-                    elif (this.getTileAt(y, x) == nextColor):
+                    elif (checkBoard[y][x] == nextColor):
                         break
                     (x, y) = tuple(x+y for x,y in zip((x ,y), vector))
 
         return validMovePositions
 
     # finds all positions of a color on the board 
-    def findColorPositions(this, color: Tile) -> list[Position]:
+    def findColorPositions(this, color: Tile, inBoard: Matrix) -> list[Position]:
 
         colorPositions = []
 
-        for i in range(len(this.board)):
-            for j in range(len(this.board[0])):
-                if this.getTileAt(i, j) == color:
+        for i in range(len(inBoard)):
+            for j in range(len(inBoard[0])):
+                if inBoard[i][j] == color:
                     colorPositions.append((j, i))
 
         return colorPositions
@@ -329,6 +362,19 @@ class Oth:
 
         this.blackNextToMove = not this.blackNextToMove
         return True
+
+    # returns the resulting board after a move 
+    def simulateMove(this, playBoard: Matrix, blackNextToMove: bool, position: Position, validMoves: dict) -> Matrix:
+
+        # extra board to hold the resultant state and return
+        extraBoard = this.getBoardClone(playBoard)
+        
+        # set the appropriate tiles associated with the move
+        # assumes a valid move was passed in
+        for coordinate in validMoves[position]:
+            extraBoard[coordinate[1]][coordinate[0]] = (Tile.BLACK if this.blackNextToMove else Tile.WHITE)
+
+        return extraBoard
     
     # check if the game is over
     def isGameOver(this) -> bool:
@@ -347,6 +393,114 @@ class Oth:
                 total += tile.value # in the enum, black is -1, white is 1, and empty is 0, so they can be easily summed 
 
         return total
+
+class MiniMax:
+
+    isPlayingWhiteModifier = None
+    game = None
+
+    qualityBoard = [[4, -3, 2, 2, 2, 2, -3, 4],
+                  [-3, -4, -1, -1, -1, -1, -4, -3],
+                  [2, -1, 1, 0, 0, 1, -1, 2],
+                  [2, -1, 0, 1, 1, 0, -1, 2],
+                  [2, -1, 0, 1, 1, 0, -1, 2],
+                  [2, -1, 1, 0, 0, 1, -1, 2],
+                  [-3, -4, -1, -1, -1, -1, -4, -3],
+                  [4, -3, 2, 2, 2, 2, -3, 4]]
+
+    def __init__(this, color: Tile, game: Oth):
+        if color == Tile.WHITE:
+            this.isPlayingWhiteModifier = 1
+        else:
+            this.isPlayingWhiteModifier = -1
+        this.game = game
+
+    def minimax(this, depth: int, tryingToMaximize: bool) -> Position:
+        pass    
+
+    def evaluateBoard(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
+
+        totalEvaluation = 0
+        
+        # first multiply the board state times the quality board
+        qualitySum = this.evalQualityBoard(inBoard)
+        qualitySum *= this.isPlayingWhiteModifier
+        print(f"quality sum: {qualitySum}")
+
+        # evaluate how many moves are available to current turn
+        moveMarginSum = this.evalMoveMargin(inBoard, inBlackNextToMove)
+        print(f"move margin: {moveMarginSum}")
+
+        # evaluate how many "safe" tiles exist for black from corners
+        blackSafeSum = this.evalSafeTiles(inBoard, Tile.BLACK)
+        print(f"black safe sum: {blackSafeSum}")
+
+        # evaluate how many "safe" tiles exist for white from corners
+
+        totalEvaluation += qualitySum
+        totalEvaluation += moveMarginSum
+
+        return totalEvaluation
+    
+    # evaluates heuristic based on the quality of each position in the board 
+    def evalQualityBoard(this, inBoard: Matrix) -> int:
+        qualityBoardSum = 0
+        for i in range(len(inBoard)):
+            for j in range(len(inBoard[0])):
+                qualityBoardSum += inBoard[i][j].value * this.qualityBoard[i][j]
+
+        return qualityBoardSum
+    
+    # eval the "freedom" of movement available on this board for the next player to move
+    def evalMoveMargin(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
+        moves = this.game.findValidMoves(inBoard=inBoard, inBlackNextMove=inBlackNextToMove)
+        return len(moves)
+    
+    # find groups of safe tiles from the corners 
+    def evalSafeTiles(this, inBoard: Matrix, color: Tile) -> int:
+
+        # a "safe" group begins at the corner and covers a range on each leading edge with that color 
+        # once the line of tiles on the edge reaches the end, the next "corner" is then the diagonal from the previous corner
+        # now the new edges can be evaluated until the previous edges - 1 
+        # repeat 
+        
+        # bottom right
+        return this.evalSafeTilesRecur(inBoard, color, (7, 7), CornerDirection.BOTTOM_RIGHT, 7, 7)
+
+    def evalSafeTilesRecur(this, inBoard: Matrix, color: Tile, cornerPosition: Position, cornerDirection: CornerDirection, verticalRange: int, horizontalRange: int) -> int:
+
+        # this corner does not contain a safe tile of this color 
+        if inBoard[cornerPosition[1]][cornerPosition[0]] != color:
+            return 0
+        
+        safeSum = color.value # count this corner
+        if verticalRange <= 0 and horizontalRange <= 0:
+            safeSum = 0 # ...unless its not shielded 
+        
+        # go up/down the vertical edge
+        nextVertRange = 0
+        if verticalRange > 0:
+            nextVertRange = verticalRange - 2
+            for i in range(1, verticalRange + 1):
+                if inBoard[cornerPosition[1] + (cornerDirection.value[1] * i)][cornerPosition[0]] == color: # check the tile offset from the corner
+                    safeSum += color.value
+                else:
+                    nextVertRange = i - 4
+                    break
+
+        # go left/right the horizontal edge
+        nextHorizRange = 0
+        if horizontalRange > 0:
+            nextHorizRange = horizontalRange - 2
+            for j in range(1, horizontalRange + 1):
+                if inBoard[cornerPosition[1]][cornerPosition[0] + (cornerDirection.value[0] * j)] == color: # check the tile offset from the corner
+                    safeSum += color.value
+                else:
+                    nextHorizRange = i - 4
+                    break
+        
+        nextCorner = (cornerPosition[0] + cornerDirection.value[0], cornerPosition[1] + cornerDirection.value[1])
+        return safeSum + this.evalSafeTilesRecur(inBoard, color, nextCorner, cornerDirection, nextVertRange, nextHorizRange)
     
 class Menu:
 
@@ -467,7 +621,9 @@ class Menu:
         print("bot player")
 
 if __name__ == "__main__":
-    menu = Menu()
-    menu.startScreen()
-    # oth = Oth()
-    # print(oth.strForOutput())
+    # menu = Menu()
+    # menu.startScreen()
+    oth = Oth()
+    minmax = MiniMax(Tile.BLACK, oth)
+    print(oth.strForOutput(oth.board, True))
+    print(f"final eval: {minmax.evaluateBoard(oth.board, True)}")
