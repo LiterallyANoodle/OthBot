@@ -49,6 +49,8 @@ UNICODE_SHADE_EMPTY = ' '
 PRINT_WIDTH = 8
 PRINT_HEIGHT = 4
 
+SEARCH_DEPTH = 6
+
 TITLE_ASCII_ART_1 = \
 """
 +===========================================================================+
@@ -149,14 +151,22 @@ class Oth:
         E = Tile.EMPTY
         B = Tile.BLACK
         W = Tile.WHITE
-        return [[E, E, E, E, E, E, E, B],
-                [E, E, E, E, E, E, B, B],
-                [E, E, E, E, E, E, B, B],
-                [E, E, E, E, E, E, B, B],
-                [E, E, E, B, E, E, B, B],
-                [E, E, E, E, B, B, B, B],
-                [E, E, E, E, E, B, B, B],
-                [B, B, B, B, B, B, B, B]]
+        return [[E, E, E, E, E, E, E, E],
+                [E, E, E, E, E, E, E, E],
+                [E, E, E, E, E, E, E, E],
+                [E, E, E, W, B, E, E, E],
+                [E, E, E, B, W, E, E, E],
+                [E, E, E, E, E, E, E, E],
+                [E, E, E, E, E, E, E, E],
+                [E, E, E, E, E, E, E, E]]
+        # return [[W, E, B, E, B, E, E, E],
+        #         [E, W, W, W, W, W, W, E],
+        #         [B, E, W, E, B, E, E, E],
+        #         [E, W, E, W, W, W, W, E],
+        #         [W, E, W, B, W, B, E, E],
+        #         [E, W, E, W, E, W, B, B],
+        #         [E, E, W, E, E, B, B, B],
+        #         [E, E, E, E, E, B, B, B]]
     
     # accessors and mutators 
     def getTileAt(this, i: int, j: int) -> Tile:
@@ -370,18 +380,26 @@ class Oth:
         return extraBoard
     
     # check if the game is over
-    def isGameOver(this) -> bool:
-        nextCanMove = (len(this.findValidMoves()) > 0)
-        this.blackNextToMove = not this.blackNextToMove
-        oppositeCanMove = (len(this.findValidMoves()) > 0)
-        this.blackNextToMove = not this.blackNextToMove
+    def isGameOver(this, inBoard=None) -> bool:
+
+        testBoard = this.board
+        if inBoard != None:
+            testBoard = inBoard
+
+        nextCanMove = (len(this.findValidMoves(testBoard, True)) > 0)
+        oppositeCanMove = (len(this.findValidMoves(testBoard, False)) > 0)
 
         return not (nextCanMove or oppositeCanMove)
     
     # check the margin of score
-    def findMargin(this) -> int:
+    def findMargin(this, inBoard=None) -> int:
+
+        testBoard = this.board
+        if inBoard != None:
+            testBoard = inBoard
+
         total = 0
-        for row in this.board:
+        for row in testBoard:
             for tile in row:
                 total += tile.value # in the enum, black is -1, white is 1, and empty is 0, so they can be easily summed 
 
@@ -391,6 +409,7 @@ class MiniMax:
 
     isPlayingWhiteModifier = None
     game = None
+    abPruning = None
 
     qualityBoard = [[4, -3, 2, 2, 2, 2, -3, 4],
                   [-3, -4, -1, -1, -1, -1, -4, -3],
@@ -407,31 +426,75 @@ class MiniMax:
         else:
             this.isPlayingWhiteModifier = -1
         this.game = game
+        this.abPruning = True
 
-    def minimax(this, depth: int, tryingToMaximize: bool) -> Position:
-        pass    
+    # minimax recursive algorithm 
+    # when OthBot plays black, SAME(tryingToMaximize, inBlackNextToMove) = True
+    # when OthBot plays white, SAME(tryingToMaximize, inBlackNextToMove) = False
+    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None) -> (Position, int):
+        
+        # check if this position is a game over or search depth reached 
+        if this.game.isGameOver(inBoard) or depth == 0:
+            return ((8, 8), this.evaluateBoard(inBoard, inBlackNextMove))
+        
+        validMoves = this.game.findValidMoves(inBoard, inBlackNextMove)
+        
+        # maximize mode 
+        if tryingToMaximize:
+            bestEvaluation = -9999
+            bestMove = None
+            for position in validMoves:
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, not inBlackNextMove, position, validMoves), depth - 1, False, not inBlackNextMove, position)
+                bestEvaluation = max(bestEvaluation, evaluation)
+                bestMove = (position if evaluation >= bestEvaluation else bestMove)
+            return (bestMove, bestEvaluation)
+
+        # minimize mode 
+        else: 
+            bestEvaluation = 9999
+            bestMove = None
+            for position in validMoves:
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, not inBlackNextMove, position, validMoves), depth - 1, True, not inBlackNextMove, position)
+                bestEvaluation = min(bestEvaluation, evaluation)
+                bestMove = (position if evaluation <= bestEvaluation else bestMove)
+            return (bestMove, bestEvaluation)
 
     def evaluateBoard(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
+
+        # if this is a game over, return either positive or negative infinity based on the margin
+        if this.game.isGameOver(inBoard):
+            if this.game.findMargin(inBoard) > 0:
+                return 9999 * this.isPlayingWhiteModifier
+            elif this.game.findMargin(inBoard) < 0:
+                return -9999 * this.isPlayingWhiteModifier
+            else:
+                return -9999 # return negative infinity on a draw, regardless of color 
 
         totalEvaluation = 0
         
         # first multiply the board state times the quality board
         qualitySum = this.evalQualityBoard(inBoard)
         qualitySum *= this.isPlayingWhiteModifier
-        print(f"quality sum: {qualitySum}")
+        # print(f"quality sum: {qualitySum}")
 
         # evaluate how many moves are available to current turn
         moveMarginSum = this.evalMoveMargin(inBoard, inBlackNextToMove)
-        print(f"move margin: {moveMarginSum}")
+        # print(f"move margin: {moveMarginSum}")
 
-        # evaluate how many "safe" tiles exist for black from corners
+        # evaluate how many "safe" tiles exist for black
         blackSafeSum = this.evalSafeTiles(inBoard, Tile.BLACK)
-        print(f"black safe sum: {blackSafeSum}")
+        blackSafeSum *= this.isPlayingWhiteModifier
+        # print(f"black safe sum: {blackSafeSum}")
 
-        # evaluate how many "safe" tiles exist for white from corners
+        # evaluate how many "safe" tiles exist for white
+        whiteSafeSum = this.evalSafeTiles(inBoard, Tile.WHITE)
+        whiteSafeSum *= this.isPlayingWhiteModifier
+        # print(f"white safe sum: {whiteSafeSum}")
 
         totalEvaluation += qualitySum
         totalEvaluation += moveMarginSum
+        totalEvaluation += blackSafeSum
+        totalEvaluation += whiteSafeSum
 
         return totalEvaluation
     
@@ -593,6 +656,7 @@ class MiniMax:
 class Menu:
 
     game = None
+    bot = None
     DEBUG = False
 
     def __init__(this):
@@ -615,7 +679,7 @@ class Menu:
         # table of options and their functions 
         options: dict = {0: {"label": "Exit", "function": lambda: exit()}, 
                          1: {"label": "Begin two player game", "function": lambda: this.twoPlayer()}, 
-                         2: {"label": "Begin bot game", "function": lambda: this.botPlayer()},
+                         2: {"label": "Begin bot game", "function": lambda: this.startBotPlayer()},
                          3: {"label": "Toggle debug", "function": lambda: this.toggleDebug()}}
 
         # menu stuff
@@ -638,7 +702,7 @@ class Menu:
             options[userIn]["function"]()
 
     # plays a move for a human
-    def playCoordinate(this) -> None:
+    def playCoordinate(this, inCoordinate=None) -> None:
 
         # printing 
         this.clearConsole()
@@ -649,24 +713,40 @@ class Menu:
             print(f"{ANSI_FOREGROUND_MAGENTA + "BLACK" if this.game.blackNextToMove else ANSI_FOREGROUND_YELLOW + "WHITE"}{ANSI_RESTORE_DEFAULT} has no valid moves and must pass.")
             input("Press enter to continue...")
             this.game.blackNextToMove = not this.game.blackNextToMove
-        else:
-            print("Type the coordinate to play as a tuple like (x, y). Valid moves are highlighted yellow.")
 
-            userIn = this.getInput()
-            userIn = userIn.strip('(')
-            userIn = userIn.strip(')')
-            try:
-                coordinate = tuple(map(int, userIn.split(', ')))
-            except:
-                print("That was not an integer tuple! Please try again.")
-                input("Press enter to continue...")
-                return
+        else:
+
+            coordinate = None
+
+            # human play
+            if inCoordinate == None:
+                print("Type the coordinate to play as a tuple like (x, y). Valid moves are highlighted yellow.")
+
+                userIn = this.getInput()
+                userIn = userIn.strip('(')
+                userIn = userIn.strip(')')
+                try:
+                    coordinate = tuple(map(int, userIn.split(', ')))
+                except:
+                    print("That was not an integer tuple! Please try again.")
+                    input("Press enter to continue...")
+                    return
+
+            # bot play
+            else: 
+                coordinate = inCoordinate
 
             this.game.playMove(coordinate, this.game.findValidMoves())
 
     def toggleDebug(this) -> None:
         this.DEBUG = not this.DEBUG
         print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        input("Press enter to continue...")
+        return 
+    
+    def toggleABPruning(this) -> None:
+        this.bot.abPruning = not this.bot.abPruning
+        print(f"AB Pruning is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.bot.abPruning else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
         input("Press enter to continue...")
         return 
 
@@ -705,13 +785,98 @@ class Menu:
             print(this.game)
             print(f"It's a draw!")
 
-    def botPlayer(this) -> None:
-        print("bot player")
+    # init a bot game
+    def startBotPlayer(this) -> None:
+
+        colors = {0: {"label": f"I want to play {ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE}!", "color": Tile.WHITE},
+                  1: {"label": f"I want to play {ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE}!", "color": Tile.BLACK}}
+
+        while True:
+            this.clearConsole()
+            print("Which color do you want to play? (Black always goes first.)")
+            this.printList(colors)
+            userIn = None
+            try: 
+                userIn = int(this.getInput())
+                break
+            except:
+                print("That is not an integer! Please try again.")
+                input("Press enter to continue...")
+                continue
+
+        this.bot = MiniMax(colors[userIn]["color"], this.game)
+        this.botPlayer(colors[userIn]["color"])
+
+    # bot game loop
+    def botPlayer(this, botColor: Tile) -> None:
+
+        actions = {0: {"label": "Exit", "function": lambda: exit()},
+                   1: {"label": "Play move", "function": lambda: this.playCoordinate()},
+                   2: {"label": "Toggle debug", "function": lambda: this.toggleDebug()},
+                   3: {"label": "Toggle AB Pruning", "function": lambda: this.toggleABPruning()}}
+
+        # main game loop
+        while not this.game.isGameOver():
+
+            # print the board 
+            this.clearConsole()
+            print(this.game)
+
+            # print bot turn, bot is black
+            if this.game.blackNextToMove and botColor == Tile.BLACK:
+                print("It is now OthBot's turn!")
+                print("OthBot is thinking...")
+                move, score = this.bot.minimax(this.game.board, SEARCH_DEPTH, True, True, None)
+                print(f"OthBot wants to play {move}")
+                if this.DEBUG:
+                    print(f"Score of {move} is {score}")
+                input("Press enter to continue...")
+                this.playCoordinate(move)
+
+            # print bot turn, bot is white
+            elif not this.game.blackNextToMove and botColor == Tile.WHITE:
+                print("It is now OthBot's turn!")
+                print("OthBot is thinking...")
+                move, score = this.bot.minimax(this.game.board, SEARCH_DEPTH, True, False, None)
+                print(f"OthBot wants to play {move}")
+                if this.DEBUG:
+                    print(f"Score of {move} is {score}")
+                input("Press enter to continue...")
+                this.playCoordinate(move)
+
+            # print human turn 
+            else:
+                this.printList(actions)
+                try: 
+                    userIn = int(this.getInput())
+                except:
+                    print("That is not an integer! Please try again.")
+                    input("Press enter to continue...")
+                    continue
+                actions[userIn]["function"]()
+
+        # end game state
+        margin = this.game.findMargin()
+        if margin > 0:
+            this.clearConsole()
+            print(this.game)
+            print(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+        elif margin < 0:
+            this.clearConsole()
+            print(this.game)
+            print(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+        else:
+            this.clearConsole()
+            print(this.game)
+            print(f"It's a draw!")
 
 if __name__ == "__main__":
-    # menu = Menu()
-    # menu.startScreen()
-    oth = Oth()
-    minmax = MiniMax(Tile.BLACK, oth)
-    print(oth.strForOutput(oth.board, True))
-    print(f"final eval: {minmax.evaluateBoard(oth.board, True)}")
+    menu = Menu()
+    menu.startScreen()
+    # oth = Oth()
+    # minimax = MiniMax(Tile.BLACK, oth)
+    # print(oth.strForOutput(oth.board, True))
+    # # print(f"final eval: {minimax.evaluateBoard(oth.board, True)}")
+    # best = minimax.minimax(minimax.game.board, SEARCH_DEPTH, True, True)
+    # print(f"Best: {best}")
+    
