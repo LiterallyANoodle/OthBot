@@ -132,13 +132,6 @@ class Tile(Enum):
     BLACK = -1 # the user will usually start and black always starts, so black has a negative heuristic association typically
     WHITE = 1
 
-# create enum for safe tile function
-class CornerDirection(Enum):
-    TOP_RIGHT = (-1, 1)
-    BOTTOM_RIGHT = (-1, -1)
-    BOTTOM_LEFT = (1, -1)
-    TOP_LEFT = (1, 1)
-
 # game class (rules and board)
 class Oth: 
 
@@ -460,47 +453,142 @@ class MiniMax:
     def evalSafeTiles(this, inBoard: Matrix, color: Tile) -> int:
 
         # a "safe" group begins at the corner and covers a range on each leading edge with that color 
-        # once the line of tiles on the edge reaches the end, the next "corner" is then the diagonal from the previous corner
-        # now the new edges can be evaluated until the previous edges - 1 
-        # repeat 
-        
-        # bottom right
-        return this.evalSafeTilesRecur(inBoard, color, (7, 7), CornerDirection.BOTTOM_RIGHT, 7, 7)
+        # To test if a tile is safe, attempt to traverse to each direction to an edge by only passing same color tiles.
+        # Each of these "safe paths" lies on an axis by which the tile can be attacked. 
+        # If successful in reaching a safe path on each of the 4 axes, then the tile is safe.
+        # axes are up/down, left/right, up_right/down_left, up_left/down_right
+        # repeat for every tile
 
-    def evalSafeTilesRecur(this, inBoard: Matrix, color: Tile, cornerPosition: Position, cornerDirection: CornerDirection, verticalRange: int, horizontalRange: int) -> int:
+        totalSafe = 0
 
-        # this corner does not contain a safe tile of this color 
-        if inBoard[cornerPosition[1]][cornerPosition[0]] != color:
-            return 0
+        # This dictionary holds all of the amounts to add/subtract from an index to move in a particular direction
+        directions: dict = {"up": (0, -1), 
+                            "up-right": (1, -1), 
+                            "right": (1, 0), 
+                            "down-right": (1, 1), 
+                            "down": (0, 1), 
+                            "down-left": (-1, 1), 
+                            "left": (-1, 0), 
+                            "up-left": (-1, -1)}
         
-        safeSum = color.value # count this corner
-        if verticalRange <= 0 and horizontalRange <= 0:
-            safeSum = 0 # ...unless its not shielded 
-        
-        # go up/down the vertical edge
-        nextVertRange = 0
-        if verticalRange > 0:
-            nextVertRange = verticalRange - 2
-            for i in range(1, verticalRange + 1):
-                if inBoard[cornerPosition[1] + (cornerDirection.value[1] * i)][cornerPosition[0]] == color: # check the tile offset from the corner
-                    safeSum += color.value
-                else:
-                    nextVertRange = i - 4
+        # all positions for this color 
+        thisColorPositions = this.game.findColorPositions(color, inBoard)
+
+        for position in thisColorPositions:
+
+            safeAxes = [False, False, False, False]
+
+            # up/down
+            (x, y) = position
+            while True:
+                x += directions["up"][0]
+                y += directions["up"][1]
+                if not this.tileIsOnBoard(x, y):
+                    # success, go to the next axis 
+                    safeAxes[0] = True
                     break
-
-        # go left/right the horizontal edge
-        nextHorizRange = 0
-        if horizontalRange > 0:
-            nextHorizRange = horizontalRange - 2
-            for j in range(1, horizontalRange + 1):
-                if inBoard[cornerPosition[1]][cornerPosition[0] + (cornerDirection.value[0] * j)] == color: # check the tile offset from the corner
-                    safeSum += color.value
-                else:
-                    nextHorizRange = i - 4
+                elif inBoard[y][x] != color:
+                    # failure, go to opposite direction
                     break
-        
-        nextCorner = (cornerPosition[0] + cornerDirection.value[0], cornerPosition[1] + cornerDirection.value[1])
-        return safeSum + this.evalSafeTilesRecur(inBoard, color, nextCorner, cornerDirection, nextVertRange, nextHorizRange)
+            if not safeAxes[0]:
+                (x, y) = position
+                while True:
+                    x += directions["down"][0]
+                    y += directions["down"][1]
+                    if not this.tileIsOnBoard(x, y):
+                        # success, go to the next axis 
+                        safeAxes[0] = True
+                        break
+                    elif inBoard[y][x] != color:
+                        # failure, go to opposite direction
+                        break
+
+            # up_right/down_left
+            (x, y) = position
+            while True:
+                x += directions["up-right"][0]
+                y += directions["up-right"][1]
+                if not this.tileIsOnBoard(x, y):
+                    # success, go to the next axis 
+                    safeAxes[1] = True
+                    break
+                elif inBoard[y][x] != color:
+                    # failure, go to opposite direction
+                    break
+            if not safeAxes[1]:
+                (x, y) = position
+                while True:
+                    x += directions["down-left"][0]
+                    y += directions["down-left"][1]
+                    if not this.tileIsOnBoard(x, y):
+                        # success, go to the next axis 
+                        safeAxes[1] = True
+                        break
+                    elif inBoard[y][x] != color:
+                        # failure, go to opposite direction
+                        break
+            
+            # left/right
+            (x, y) = position
+            while True:
+                x += directions["right"][0]
+                y += directions["right"][1]
+                if not this.tileIsOnBoard(x, y):
+                    # success, go to the next axis 
+                    safeAxes[2] = True
+                    break
+                elif inBoard[y][x] != color:
+                    # failure, go to opposite direction
+                    break
+            if not safeAxes[2]:
+                (x, y) = position
+                while True:
+                    x += directions["left"][0]
+                    y += directions["left"][1]
+                    if not this.tileIsOnBoard(x, y):
+                        # success, go to the next axis 
+                        safeAxes[2] = True
+                        break
+                    elif inBoard[y][x] != color:
+                        # failure, go to opposite direction
+                        break
+
+            # down_right/up_left
+            (x, y) = position
+            while True:
+                x += directions["down-right"][0]
+                y += directions["down-right"][1]
+                if not this.tileIsOnBoard(x, y):
+                    # success, go to the next axis 
+                    safeAxes[3] = True
+                    break
+                elif inBoard[y][x] != color:
+                    # failure, go to opposite direction
+                    break
+            if not safeAxes[3]:
+                (x, y) = position
+                while True:
+                    x += directions["up-left"][0]
+                    y += directions["up-left"][1]
+                    if not this.tileIsOnBoard(x, y):
+                        # success, go to the next axis 
+                        safeAxes[3] = True
+                        break
+                    elif inBoard[y][x] != color:
+                        # failure, go to opposite direction
+                        break
+
+            if False in safeAxes:
+                continue
+            totalSafe += color.value
+
+        return totalSafe
+
+    def tileIsOnBoard(this, x: int, y: int):
+        if x not in range(8) or y not in range(8):
+            return False
+        return True
+
     
 class Menu:
 
