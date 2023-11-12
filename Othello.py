@@ -972,7 +972,7 @@ class Menu:
             print(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
             if this.recording:
                 file = open("trace.txt", 'a')
-                file.write(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!\n")
+                file.write(f"WHITE wins with a margin of {abs(margin)}!\n")
                 file.close()
         elif margin < 0:
             this.clearConsole()
@@ -980,7 +980,7 @@ class Menu:
             print(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
             if this.recording:
                 file = open("trace.txt", 'a')
-                file.write(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!\n")
+                file.write(f"BLACK wins with a margin of {abs(margin)}!\n")
                 file.close()
         else:
             this.clearConsole()
