@@ -49,7 +49,7 @@ UNICODE_SHADE_EMPTY = ' '
 PRINT_WIDTH = 8
 PRINT_HEIGHT = 4
 
-SEARCH_DEPTH = 6
+DEFAULT_SEARCH_DEPTH = 4
 
 TITLE_ASCII_ART_1 = \
 """
@@ -410,6 +410,7 @@ class MiniMax:
     isPlayingWhiteModifier = None
     game = None
     abPruning = None
+    searchDepth = None
 
     qualityBoard = [[4, -3, 2, 2, 2, 2, -3, 4],
                   [-3, -4, -1, -1, -1, -1, -4, -3],
@@ -427,6 +428,7 @@ class MiniMax:
             this.isPlayingWhiteModifier = -1
         this.game = game
         this.abPruning = True
+        this.searchDepth = DEFAULT_SEARCH_DEPTH
 
     # minimax recursive algorithm 
     # when OthBot plays black, SAME(tryingToMaximize, inBlackNextToMove) = True
@@ -707,7 +709,8 @@ class Menu:
         # printing 
         this.clearConsole()
         validMoves = this.game.findValidMoves()
-        print(this.game.strWithValidMoves(validMoves))
+        if inCoordinate == None:
+            print(this.game.strWithValidMoves(validMoves))
 
         if len(validMoves) == 0:
             print(f"{ANSI_FOREGROUND_MAGENTA + "BLACK" if this.game.blackNextToMove else ANSI_FOREGROUND_YELLOW + "WHITE"}{ANSI_RESTORE_DEFAULT} has no valid moves and must pass.")
@@ -749,6 +752,21 @@ class Menu:
         print(f"AB Pruning is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.bot.abPruning else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
         input("Press enter to continue...")
         return 
+    
+    def setSearchDepth(this) -> None:
+
+        while True:
+            this.clearConsole()
+            print(f"The search depth is currently set to {this.bot.searchDepth}. The default is {DEFAULT_SEARCH_DEPTH}.")
+            print(f"What should the new search depth be?")
+            try: 
+                userIn = int(this.getInput())
+                this.bot.searchDepth = userIn
+                break
+            except:
+                print("That is not an integer! Please try again.")
+                input("Press enter to continue...")
+                continue
 
     # run basic game with humans
     def twoPlayer(this) -> None:
@@ -785,6 +803,8 @@ class Menu:
             print(this.game)
             print(f"It's a draw!")
 
+        input("Press enter to continue...")
+
     # init a bot game
     def startBotPlayer(this) -> None:
 
@@ -813,7 +833,8 @@ class Menu:
         actions = {0: {"label": "Exit", "function": lambda: exit()},
                    1: {"label": "Play move", "function": lambda: this.playCoordinate()},
                    2: {"label": "Toggle debug", "function": lambda: this.toggleDebug()},
-                   3: {"label": "Toggle AB Pruning", "function": lambda: this.toggleABPruning()}}
+                   3: {"label": "Toggle AB Pruning", "function": lambda: this.toggleABPruning()},
+                   4: {"label": "Set search depth", "function": lambda: this.setSearchDepth()}}
 
         # main game loop
         while not this.game.isGameOver():
@@ -826,7 +847,7 @@ class Menu:
             if this.game.blackNextToMove and botColor == Tile.BLACK:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
-                move, score = this.bot.minimax(this.game.board, SEARCH_DEPTH, True, True, None)
+                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, True, None)
                 print(f"OthBot wants to play {move}")
                 if this.DEBUG:
                     print(f"Score of {move} is {score}")
@@ -837,7 +858,7 @@ class Menu:
             elif not this.game.blackNextToMove and botColor == Tile.WHITE:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
-                move, score = this.bot.minimax(this.game.board, SEARCH_DEPTH, True, False, None)
+                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, False, None)
                 print(f"OthBot wants to play {move}")
                 if this.DEBUG:
                     print(f"Score of {move} is {score}")
@@ -869,6 +890,8 @@ class Menu:
             this.clearConsole()
             print(this.game)
             print(f"It's a draw!")
+
+        input("Press enter to continue...")
 
 if __name__ == "__main__":
     menu = Menu()
