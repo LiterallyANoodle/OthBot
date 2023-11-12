@@ -669,9 +669,11 @@ class Menu:
 
     game = None
     bot = None
+    recording = None
 
     def __init__(this):
         this.game = Oth()
+        this.recording = False
 
     def printList(this, items: dict) -> None: 
         for i in range(len(items)):
@@ -711,7 +713,7 @@ class Menu:
             # run the selection 
             options[userIn]["function"]()
 
-    # plays a move for a human
+    # plays a move for a human or bot
     def playCoordinate(this, inCoordinate=None) -> None:
 
         # printing 
@@ -738,6 +740,13 @@ class Menu:
                 userIn = userIn.strip(')')
                 try:
                     coordinate = tuple(map(int, userIn.split(', ')))
+
+                    # record human move
+                    if this.recording:
+                        file = open("trace.txt", 'a')
+                        file.write(f"The human wants to play {coordinate}\n")
+                        file.close()
+
                 except:
                     print("That was not an integer tuple! Please try again.")
                     input("Press enter to continue...")
@@ -746,6 +755,12 @@ class Menu:
             # bot play
             else: 
                 coordinate = inCoordinate
+
+            # recording 
+            if this.recording:
+                file = open("trace.txt", 'a')
+                file.write(f"The move {coordinate} was played.")
+                file.close()
 
             this.game.playMove(coordinate, this.game.findValidMoves())
 
@@ -817,9 +832,32 @@ class Menu:
     # init a bot game
     def startBotPlayer(this) -> None:
 
+        recording = {0: {"label": "Yes, I want to record this game.", "recording": True},
+                     1: {"label": "No, I don't want to record this game.", "recording": False}}
+
         colors = {0: {"label": f"I want to play {ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE}!", "color": Tile.WHITE},
                   1: {"label": f"I want to play {ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE}!", "color": Tile.BLACK}}
+        
+        # loop for recording ask
+        while True:
+            this.clearConsole()
+            print("Would you like to record this game in 'trace.txt'?")
+            this.printList(recording)
+            userIn = None
+            try: 
+                userIn = int(this.getInput())
+                this.recording = recording[userIn]["recording"]
+                # open the file for appending 
+                file = open("trace.txt", 'w')
+                file.write('')
+                file.close()
+                break
+            except:
+                print("That is not an integer! Please try again.")
+                input("Press enter to continue...")
+                continue
 
+        # loop for color ask
         while True:
             this.clearConsole()
             print("Which color do you want to play? (Black always goes first.)")
@@ -848,6 +886,13 @@ class Menu:
         # main game loop
         while not this.game.isGameOver():
 
+            # take recording snapshot 
+            if this.recording:
+                file = open("trace.txt", 'a')
+                file.write("\n\n")
+                file.write(f"{this.game.strForOutput()}\n")
+                file.close()
+
             # print the board 
             this.clearConsole()
             print(this.game)
@@ -860,6 +905,14 @@ class Menu:
                 print(f"OthBot wants to play {move}")
                 if DEBUG:
                     print(f"Score of {move} is {score}")
+
+                # record OthBot
+                if this.recording:
+                    file = open("trace.txt", 'a')
+                    file.write(f"OthBot wants to play {move}\n")
+                    file.write(f"Score of {move} is {score}\n")
+                    file.close()
+
                 input("Press enter to continue...")
                 this.playCoordinate(move)
 
@@ -871,6 +924,14 @@ class Menu:
                 print(f"OthBot wants to play {move}")
                 if DEBUG:
                     print(f"Score of {move} is {score}")
+
+                # record OthBot
+                if this.recording:
+                    file = open("trace.txt", 'a')
+                    file.write(f"OthBot wants to play {move}\n")
+                    file.write(f"Score of {move} is {score}\n")
+                    file.close()
+
                 input("Press enter to continue...")
                 this.playCoordinate(move)
 

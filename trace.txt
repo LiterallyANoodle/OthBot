@@ -1,0 +1,39 @@
+
+
+Next to move: BLACK
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . W B . . . ]
+[. . . B W . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+Valid moves: [(4, 5), (2, 3), (3, 2), (5, 4)]
+The human wants to play (3, 2)
+The move (3, 2) was played.
+
+Next to move: WHITE
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . B . . . . ]
+[. . . B B . . . ]
+[. . . B W . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+Valid moves: [(4, 2), (2, 4), (2, 2)]
+OthBot wants to play (2, 2)
+Score of (2, 2) is 3
+The move (2, 2) was played.
+
+Next to move: BLACK
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . W B . . . . ]
+[. . . W B . . . ]
+[. . . B W . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+[. . . . . . . . ]
+Valid moves: [(1, 2), (4, 5), (2, 3), (5, 4)]
