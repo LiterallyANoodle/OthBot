@@ -10,6 +10,8 @@ from enum import Enum
 from random import randrange
 import os
 import warnings
+import winsound
+import webbrowser
 
 # ignore syntax warnings 
 warnings.filterwarnings(action='ignore', category=SyntaxWarning)
@@ -670,6 +672,7 @@ class Menu:
     game = None
     bot = None
     recording = None
+    counter = 0
 
     def __init__(this):
         this.game = Oth()
@@ -768,6 +771,13 @@ class Menu:
         global DEBUG
         DEBUG = not DEBUG
         print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        this.counter += 1
+        if this.counter % 21 == 0:
+            print("That's the power...")
+            if os.path.isfile("song.wav"):
+                winsound.PlaySound("song.wav", winsound.SND_FILENAME)
+            else:
+                webbrowser.open('https://www.youtube.com/watch?v=-UQFBtHEFJ8', new=1, autoraise=True)
         input("Press enter to continue...")
         return 
     
