@@ -416,6 +416,7 @@ class MiniMax:
     game = None
     abPruning = None
     searchDepth = None
+    statesExamined = 0
 
     qualityBoard = [[4, -3, 2, 2, 2, 2, -3, 4],
                   [-3, -4, -1, -1, -1, -1, -4, -3],
@@ -434,13 +435,26 @@ class MiniMax:
         this.game = game
         this.abPruning = True
         this.searchDepth = DEFAULT_SEARCH_DEPTH
+        this.statesExamined = 0
 
     # minimax recursive algorithm 
     # when OthBot plays black, SAME(tryingToMaximize, inBlackNextToMove) = True
     # when OthBot plays white, SAME(tryingToMaximize, inBlackNextToMove) = False
-    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None, moveSequence: list[Position]=[]) -> (Position, int):
+    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None, moveSequence: list[Position]=[], alpha=None, beta=None) -> (Position, int):
 
         moveSequence.append(movePlayed)
+        this.statesExamined += 1
+
+        # deal with ab pruning being present or not
+        alphaPass = None
+        betaPass = None
+        if this.abPruning:
+            if alpha == None: 
+                alpha = -9999
+            if beta == None:
+                beta = 9999
+            alphaPass = alpha
+            betaPass = beta
         
         # check if this position is a game over or search depth reached 
         if this.game.isGameOver(inBoard, inBlackNextMove) or depth == 0:
@@ -457,9 +471,17 @@ class MiniMax:
             bestEvaluation = -9999
             bestMove = None
             for position in validMoves:
-                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, False, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy())
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, False, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy(), alpha=alphaPass, beta=betaPass)
                 bestMove = (position if evaluation > bestEvaluation else bestMove)
                 bestEvaluation = max(bestEvaluation, evaluation)
+
+                if this.abPruning:
+                    alphaPass = max(alphaPass, evaluation)
+                    if betaPass <= alphaPass:
+                        if DEBUG:
+                            print(f"PRUNED REMAINING CHILDREN AT SEQUENCE {moveSequence}")
+                        break
+
             return (bestMove, bestEvaluation)
 
         # minimize mode 
@@ -468,9 +490,17 @@ class MiniMax:
             bestEvaluation = 9999
             bestMove = None
             for position in validMoves:
-                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, True, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy())
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, True, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy(), alpha=alphaPass, beta=betaPass)
                 bestMove = (position if evaluation < bestEvaluation else bestMove)
                 bestEvaluation = min(bestEvaluation, evaluation)
+
+                if this.abPruning:
+                    betaPass = min(betaPass, evaluation)
+                    if betaPass <= alphaPass: 
+                        if DEBUG:
+                            print(f"PRUNED REMAINING CHILDREN AT SEQUENCE {moveSequence}")
+                        break
+
             return (bestMove, bestEvaluation)
 
     def evaluateBoard(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
@@ -912,16 +942,18 @@ class Menu:
             if this.game.blackNextToMove and botColor == Tile.BLACK:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
+                this.bot.statesExamined = 0
                 move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, True, None, [])
                 print(f"OthBot wants to play {move}")
-                if DEBUG:
-                    print(f"Score of {move} is {score}")
+                print(f"Score of {move} is {score}")
+                print(f"Total states examined this turn is {this.bot.statesExamined}")
 
                 # record OthBot
                 if this.recording:
                     file = open("trace.txt", 'a')
                     file.write(f"OthBot wants to play {move}\n")
                     file.write(f"Score of {move} is {score}\n")
+                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {"ENABLED" if this.bot.abPruning else "DISABLED"}\n")
                     file.close()
 
                 input("Press enter to continue...")
@@ -931,16 +963,18 @@ class Menu:
             elif not this.game.blackNextToMove and botColor == Tile.WHITE:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
+                this.bot.statesExamined = 0
                 move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, False, None, [])
                 print(f"OthBot wants to play {move}")
-                if DEBUG:
-                    print(f"Score of {move} is {score}")
+                print(f"Score of {move} is {score}")
+                print(f"Total states examined this turn is {this.bot.statesExamined}")
 
                 # record OthBot
                 if this.recording:
                     file = open("trace.txt", 'a')
                     file.write(f"OthBot wants to play {move}\n")
                     file.write(f"Score of {move} is {score}\n")
+                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {"ENABLED" if this.bot.abPruning else "DISABLED"}\n")
                     file.close()
 
                 input("Press enter to continue...")
