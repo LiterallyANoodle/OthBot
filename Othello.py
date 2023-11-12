@@ -50,6 +50,7 @@ PRINT_WIDTH = 8
 PRINT_HEIGHT = 4
 
 DEFAULT_SEARCH_DEPTH = 4
+DEBUG = False
 
 TITLE_ASCII_ART_1 = \
 """
@@ -375,19 +376,21 @@ class Oth:
         # set the appropriate tiles associated with the move
         # assumes a valid move was passed in
         for coordinate in validMoves[position]:
-            extraBoard[coordinate[1]][coordinate[0]] = (Tile.BLACK if this.blackNextToMove else Tile.WHITE)
+            extraBoard[coordinate[1]][coordinate[0]] = (Tile.BLACK if blackNextToMove else Tile.WHITE)
 
         return extraBoard
     
     # check if the game is over
-    def isGameOver(this, inBoard=None) -> bool:
+    def isGameOver(this, inBoard=None, inBlackNextMove=None) -> bool:
 
         testBoard = this.board
-        if inBoard != None:
+        colorBlackNext = this.blackNextToMove
+        if inBoard != None and inBlackNextMove != None:
             testBoard = inBoard
+            colorBlackNext = inBlackNextMove
 
-        nextCanMove = (len(this.findValidMoves(testBoard, True)) > 0)
-        oppositeCanMove = (len(this.findValidMoves(testBoard, False)) > 0)
+        nextCanMove = (len(this.findValidMoves(testBoard, colorBlackNext)) > 0)
+        oppositeCanMove = (len(this.findValidMoves(testBoard, not colorBlackNext)) > 0)
 
         return not (nextCanMove or oppositeCanMove)
     
@@ -433,38 +436,45 @@ class MiniMax:
     # minimax recursive algorithm 
     # when OthBot plays black, SAME(tryingToMaximize, inBlackNextToMove) = True
     # when OthBot plays white, SAME(tryingToMaximize, inBlackNextToMove) = False
-    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None) -> (Position, int):
+    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None, moveSequence: list[Position]=[]) -> (Position, int):
+
+        moveSequence.append(movePlayed)
         
         # check if this position is a game over or search depth reached 
-        if this.game.isGameOver(inBoard) or depth == 0:
-            return ((8, 8), this.evaluateBoard(inBoard, inBlackNextMove))
+        if this.game.isGameOver(inBoard, inBlackNextMove) or depth == 0:
+            boardEval = this.evaluateBoard(inBoard, inBlackNextMove)
+            if DEBUG:
+                print(f"Sequence to here: {moveSequence} with score: {boardEval}")
+            return (movePlayed, boardEval)
         
         validMoves = this.game.findValidMoves(inBoard, inBlackNextMove)
         
         # maximize mode 
         if tryingToMaximize:
+            # print(f"I think it is black's turn {inBlackNextMove} and I am trying to maximize. Seq to here was {moveSequence}. Depth is {depth}")
             bestEvaluation = -9999
             bestMove = None
             for position in validMoves:
-                _, evaluation = this.minimax(this.game.simulateMove(inBoard, not inBlackNextMove, position, validMoves), depth - 1, False, not inBlackNextMove, position)
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, False, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy())
+                bestMove = (position if evaluation > bestEvaluation else bestMove)
                 bestEvaluation = max(bestEvaluation, evaluation)
-                bestMove = (position if evaluation >= bestEvaluation else bestMove)
             return (bestMove, bestEvaluation)
 
         # minimize mode 
         else: 
+            # print(f"I think it is black's turn {inBlackNextMove} and I am trying to minimize. Seq to here was {moveSequence}. Depth is {depth}")
             bestEvaluation = 9999
             bestMove = None
             for position in validMoves:
-                _, evaluation = this.minimax(this.game.simulateMove(inBoard, not inBlackNextMove, position, validMoves), depth - 1, True, not inBlackNextMove, position)
+                _, evaluation = this.minimax(this.game.simulateMove(inBoard, inBlackNextMove, position, validMoves), depth - 1, True, not inBlackNextMove, movePlayed=position, moveSequence=moveSequence.copy())
+                bestMove = (position if evaluation < bestEvaluation else bestMove)
                 bestEvaluation = min(bestEvaluation, evaluation)
-                bestMove = (position if evaluation <= bestEvaluation else bestMove)
             return (bestMove, bestEvaluation)
 
     def evaluateBoard(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
 
         # if this is a game over, return either positive or negative infinity based on the margin
-        if this.game.isGameOver(inBoard):
+        if this.game.isGameOver(inBoard, inBlackNextToMove):
             if this.game.findMargin(inBoard) > 0:
                 return 9999 * this.isPlayingWhiteModifier
             elif this.game.findMargin(inBoard) < 0:
@@ -659,10 +669,8 @@ class Menu:
 
     game = None
     bot = None
-    DEBUG = False
 
     def __init__(this):
-        this.DEBUG = False
         this.game = Oth()
 
     def printList(this, items: dict) -> None: 
@@ -742,8 +750,9 @@ class Menu:
             this.game.playMove(coordinate, this.game.findValidMoves())
 
     def toggleDebug(this) -> None:
-        this.DEBUG = not this.DEBUG
-        print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        global DEBUG
+        DEBUG = not DEBUG
+        print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
         input("Press enter to continue...")
         return 
     
@@ -847,9 +856,9 @@ class Menu:
             if this.game.blackNextToMove and botColor == Tile.BLACK:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
-                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, True, None)
+                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, True, None, [])
                 print(f"OthBot wants to play {move}")
-                if this.DEBUG:
+                if DEBUG:
                     print(f"Score of {move} is {score}")
                 input("Press enter to continue...")
                 this.playCoordinate(move)
@@ -858,9 +867,9 @@ class Menu:
             elif not this.game.blackNextToMove and botColor == Tile.WHITE:
                 print("It is now OthBot's turn!")
                 print("OthBot is thinking...")
-                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, False, None)
+                move, score = this.bot.minimax(this.game.board, this.bot.searchDepth, True, False, None, [])
                 print(f"OthBot wants to play {move}")
-                if this.DEBUG:
+                if DEBUG:
                     print(f"Score of {move} is {score}")
                 input("Press enter to continue...")
                 this.playCoordinate(move)
