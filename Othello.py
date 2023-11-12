@@ -848,9 +848,10 @@ class Menu:
                 userIn = int(this.getInput())
                 this.recording = recording[userIn]["recording"]
                 # open the file for appending 
-                file = open("trace.txt", 'w')
-                file.write('')
-                file.close()
+                if this.recording:
+                    file = open("trace.txt", 'w')
+                    file.write('')
+                    file.close()
                 break
             except:
                 print("That is not an integer! Please try again.")
@@ -946,20 +947,39 @@ class Menu:
                     continue
                 actions[userIn]["function"]()
 
+        # print the final board state
+        if this.recording:
+            file = open("trace.txt", 'a')
+            file.write("\n\n")
+            file.write(f"{this.game.strForOutput()}\n")
+            file.close()
+
         # end game state
         margin = this.game.findMargin()
         if margin > 0:
             this.clearConsole()
             print(this.game)
             print(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+            if this.recording:
+                file = open("trace.txt", 'a')
+                file.write(f"{ANSI_FOREGROUND_YELLOW}WHITE{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!\n")
+                file.close()
         elif margin < 0:
             this.clearConsole()
             print(this.game)
             print(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!")
+            if this.recording:
+                file = open("trace.txt", 'a')
+                file.write(f"{ANSI_FOREGROUND_MAGENTA}BLACK{ANSI_FOREGROUND_WHITE} wins with a margin of {abs(margin)}!\n")
+                file.close()
         else:
             this.clearConsole()
             print(this.game)
             print(f"It's a draw!")
+            if this.recording:
+                file = open("trace.txt", 'a')
+                file.write(f"It's a draw!\n")
+                file.close()
 
         input("Press enter to continue...")
 
