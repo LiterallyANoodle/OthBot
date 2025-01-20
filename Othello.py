@@ -10,16 +10,16 @@ from enum import Enum
 from random import randrange
 import os
 import warnings
-import winsound
+# import winsound
 import webbrowser
 
 # ignore syntax warnings 
 warnings.filterwarnings(action='ignore', category=SyntaxWarning)
 
 # custom type hints 
-type Matrix = list[list[Tile]]
-type Position = tuple[int, int]
-type Move = tuple[Tile, list[Position]]
+# Matrix = list[list[Tile]]
+# Position = tuple[int, int]
+# Move = tuple[Tile, list[Position]]
 
 # formatting constants
 ANSI_FOREGROUND_BLACK = '\x1b[30m'
@@ -141,7 +141,7 @@ class Tile(Enum):
 class Oth: 
 
     # members 
-    board: Matrix = None
+    board = None
     blackNextToMove: bool = None
 
     # construct a new game
@@ -150,7 +150,7 @@ class Oth:
         this.blackNextToMove = True
 
     # return the starting board 
-    def createStartBoard() -> Matrix:
+    def createStartBoard():
         E = Tile.EMPTY
         B = Tile.BLACK
         W = Tile.WHITE
@@ -199,7 +199,7 @@ class Oth:
         
         outstr = ANSI_RESTORE_DEFAULT
 
-        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + 'BLACK') if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + 'WHITE')}\n"
         outstr += ANSI_FOREGROUND_WHITE
 
         for row in this.board:
@@ -217,11 +217,11 @@ class Oth:
 
         return outstr
     
-    def strWithValidMoves(this, validMovePositions: list[Position]) -> str:
+    def strWithValidMoves(this, validMovePositions) -> str:
 
         outstr = ANSI_RESTORE_DEFAULT
 
-        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + "BLACK") if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + "WHITE")}\n"
+        outstr += f"Next to move: {(ANSI_FOREGROUND_MAGENTA + 'BLACK') if this.blackNextToMove else (ANSI_FOREGROUND_YELLOW + 'WHITE')}\n"
         outstr += ANSI_FOREGROUND_WHITE
 
         # print coordinates for ease of play
@@ -260,7 +260,7 @@ class Oth:
             printBoard = inBoard
             printBlackNextMove = inBlackNextToMove
 
-        outstr = f"Next to move: {"BLACK" if printBlackNextMove else "WHITE"}\n"
+        outstr = f"Next to move: {'BLACK' if printBlackNextMove else 'WHITE'}\n"
 
         for i in range(len(printBoard)):
             rowPrint = "["
@@ -279,7 +279,7 @@ class Oth:
         return outstr
 
     # searches the board and returns a list of tuples which are valid coordinates for next player to place a tile
-    def findValidMoves(this, inBoard=None, inBlackNextMove=None) -> list[Position]:
+    def findValidMoves(this, inBoard=None, inBlackNextMove=None):
 
         checkBoard = this.board
         checkBlackNextMove = this.blackNextToMove
@@ -341,7 +341,7 @@ class Oth:
         return validMovePositions
 
     # finds all positions of a color on the board 
-    def findColorPositions(this, color: Tile, inBoard: Matrix) -> list[Position]:
+    def findColorPositions(this, color: Tile, inBoard):
 
         colorPositions = []
 
@@ -354,7 +354,7 @@ class Oth:
     
     # returns true or false based on if the move succeeded or not
     # method assumes that there are > 0 valid moves to play 
-    def playMove(this, position: Position, validMoves: dict) -> bool:
+    def playMove(this, position, validMoves: dict) -> bool:
 
         # move fails 
         if position not in validMoves:
@@ -370,7 +370,7 @@ class Oth:
         return True
 
     # returns the resulting board after a move 
-    def simulateMove(this, playBoard: Matrix, blackNextToMove: bool, position: Position, validMoves: dict) -> Matrix:
+    def simulateMove(this, playBoard, blackNextToMove: bool, position, validMoves: dict):
 
         # extra board to hold the resultant state and return
         extraBoard = this.getBoardClone(playBoard)
@@ -440,7 +440,7 @@ class MiniMax:
     # minimax recursive algorithm 
     # when OthBot plays black, SAME(tryingToMaximize, inBlackNextToMove) = True
     # when OthBot plays white, SAME(tryingToMaximize, inBlackNextToMove) = False
-    def minimax(this, inBoard: Matrix, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed: Position=None, moveSequence: list[Position]=[], alpha=None, beta=None) -> (Position, int):
+    def minimax(this, inBoard, depth: int, tryingToMaximize: bool, inBlackNextMove: bool, movePlayed=None, moveSequence=[], alpha=None, beta=None):
 
         moveSequence.append(movePlayed)
         this.statesExamined += 1
@@ -503,7 +503,7 @@ class MiniMax:
 
             return (bestMove, bestEvaluation)
 
-    def evaluateBoard(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
+    def evaluateBoard(this, inBoard, inBlackNextToMove: bool) -> int:
 
         # if this is a game over, return either positive or negative infinity based on the margin
         if this.game.isGameOver(inBoard, inBlackNextToMove):
@@ -543,7 +543,7 @@ class MiniMax:
         return totalEvaluation
     
     # evaluates heuristic based on the quality of each position in the board 
-    def evalQualityBoard(this, inBoard: Matrix) -> int:
+    def evalQualityBoard(this, inBoard) -> int:
         qualityBoardSum = 0
         for i in range(len(inBoard)):
             for j in range(len(inBoard[0])):
@@ -552,12 +552,12 @@ class MiniMax:
         return qualityBoardSum
     
     # eval the "freedom" of movement available on this board for the next player to move
-    def evalMoveMargin(this, inBoard: Matrix, inBlackNextToMove: bool) -> int:
+    def evalMoveMargin(this, inBoard, inBlackNextToMove: bool) -> int:
         moves = this.game.findValidMoves(inBoard=inBoard, inBlackNextMove=inBlackNextToMove)
         return len(moves)
     
     # find groups of safe tiles from the corners 
-    def evalSafeTiles(this, inBoard: Matrix, color: Tile) -> int:
+    def evalSafeTiles(this, inBoard, color: Tile) -> int:
 
         # a "safe" group begins at the corner and covers a range on each leading edge with that color 
         # To test if a tile is safe, attempt to traverse to each direction to an edge by only passing same color tiles.
@@ -710,7 +710,7 @@ class Menu:
 
     def printList(this, items: dict) -> None: 
         for i in range(len(items)):
-            print(f"[{i}] {items[i]["label"]}")
+            print(f"[{i}] {items[i]['label']}")
 
     def clearConsole(this) -> None:
         os.system('cls')
@@ -756,7 +756,7 @@ class Menu:
             print(this.game.strWithValidMoves(validMoves))
 
         if len(validMoves) == 0:
-            print(f"{ANSI_FOREGROUND_MAGENTA + "BLACK" if this.game.blackNextToMove else ANSI_FOREGROUND_YELLOW + "WHITE"}{ANSI_RESTORE_DEFAULT} has no valid moves and must pass.")
+            print(f"{ANSI_FOREGROUND_MAGENTA + 'BLACK' if this.game.blackNextToMove else ANSI_FOREGROUND_YELLOW + 'WHITE'}{ANSI_RESTORE_DEFAULT} has no valid moves and must pass.")
             input("Press enter to continue...")
             this.game.blackNextToMove = not this.game.blackNextToMove
 
@@ -800,7 +800,7 @@ class Menu:
     def toggleDebug(this) -> None:
         global DEBUG
         DEBUG = not DEBUG
-        print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + "ENABLED" if DEBUG else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        print(f"Debug mode is now {ANSI_FOREGROUND_GREEN + 'ENABLED' if DEBUG else ANSI_FOREGROUND_RED + 'DISABLED'}{ANSI_RESTORE_DEFAULT}")
         this.counter += 1
         if this.counter % 21 == 0:
             print("That's the power...")
@@ -813,7 +813,7 @@ class Menu:
     
     def toggleABPruning(this) -> None:
         this.bot.abPruning = not this.bot.abPruning
-        print(f"AB Pruning is now {ANSI_FOREGROUND_GREEN + "ENABLED" if this.bot.abPruning else ANSI_FOREGROUND_RED + "DISABLED"}{ANSI_RESTORE_DEFAULT}")
+        print(f"AB Pruning is now {ANSI_FOREGROUND_GREEN + 'ENABLED' if this.bot.abPruning else ANSI_FOREGROUND_RED + 'DISABLED'}{ANSI_RESTORE_DEFAULT}")
         input("Press enter to continue...")
         return 
     
@@ -953,7 +953,7 @@ class Menu:
                     file = open("trace.txt", 'a')
                     file.write(f"OthBot wants to play {move}\n")
                     file.write(f"Score of {move} is {score}\n")
-                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {"ENABLED" if this.bot.abPruning else "DISABLED"}\n")
+                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {'ENABLED' if this.bot.abPruning else 'DISABLED'}\n")
                     file.close()
 
                 input("Press enter to continue...")
@@ -974,7 +974,7 @@ class Menu:
                     file = open("trace.txt", 'a')
                     file.write(f"OthBot wants to play {move}\n")
                     file.write(f"Score of {move} is {score}\n")
-                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {"ENABLED" if this.bot.abPruning else "DISABLED"}\n")
+                    file.write(f"Total states examined this turn is {this.bot.statesExamined} with AB Pruning {'ENABLED' if this.bot.abPruning else 'DISABLED'}\n")
                     file.close()
 
                 input("Press enter to continue...")
